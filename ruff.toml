@@ -1,0 +1,20 @@
+line-length = 100
+extend-exclude = ["build", "install", "log", "runs", ".venv"]
+
+[lint]
+# E/W pycodestyle, F pyflakes, I isort, B bugbear, UP pyupgrade, SIM simplify, NPY numpy,
+# D pydocstyle
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "NPY", "D"]
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.per-file-ignores]
+# Tests do not need docstrings; ament_python packages keep them in test/.
+"**/test/**" = ["D"]
+"**/tests/**" = ["D"]
+# setup.py of ament_python packages has no module docstring.
+"**/setup.py" = ["D100"]
+
+[format]
+quote-style = "double"
