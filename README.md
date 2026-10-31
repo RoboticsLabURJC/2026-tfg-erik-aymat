@@ -61,4 +61,4 @@ runs/          training outputs (not versioned)
 
 ## License
 
-To be defined.
+Licensed under the [Apache License 2.0](LICENSE).
