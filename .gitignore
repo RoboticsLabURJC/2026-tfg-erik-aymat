@@ -1,0 +1,14 @@
+# colcon
+build/
+install/
+log/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+
+# Training outputs (large, not versioned)
+runs/
