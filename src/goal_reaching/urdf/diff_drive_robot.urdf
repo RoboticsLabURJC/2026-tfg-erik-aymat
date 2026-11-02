@@ -1,0 +1,169 @@
+<?xml version="1.0"?>
+<!--
+  Minimal differential-drive robot for the goal-reaching experiments.
+
+  Frames follow REP-103 (x forward, y left, z up) and REP-105/120:
+  base_footprint lies on the ground, base_link sits at the wheel axle height.
+  Dimensions in metres, masses in kilograms.
+-->
+<robot name="diff_drive_robot">
+
+  <!-- Root frame on the ground plane. It has no inertia on purpose: KDL (used by
+       robot_state_publisher) does not support a root link with inertia. -->
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <!-- Axle height = wheel radius. -->
+    <origin xyz="0 0 0.05" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Chassis: 0.30 x 0.20 x 0.08 box, shifted back so the centre of mass falls
+       between the wheel axle and the caster. -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="-0.04 0 0.03" rpy="0 0 0"/>
+      <mass value="2.0"/>
+      <!-- Solid box: I = m/12 * (a^2 + b^2) for the two sides normal to each axis. -->
+      <inertia ixx="0.007733" ixy="0" ixz="0" iyy="0.016067" iyz="0" izz="0.021667"/>
+    </inertial>
+    <visual name="chassis_visual">
+      <origin xyz="-0.04 0 0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.30 0.20 0.08"/>
+      </geometry>
+    </visual>
+    <collision name="chassis_collision">
+      <origin xyz="-0.04 0 0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.30 0.20 0.08"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Caster: a frictionless sphere touching the ground. URDF has no ball joint,
+       so it is rigidly fixed to the chassis. It is a link of its own (not just a
+       second collision of base_link) so that its friction can be set alone:
+       sdformat merges fixed links into their parent but keeps each link's
+       <gazebo reference> on its own collisions. -->
+  <link name="caster_link">
+    <visual>
+      <geometry>
+        <sphere radius="0.025"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.025"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_link"/>
+    <origin xyz="-0.11 0 -0.025" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Wheels: cylinders r = 0.05, width = 0.03, mass = 0.2. The link frame keeps
+       the base_link orientation and the joint spins around y; only the cylinder
+       shape is rotated, because a URDF cylinder is aligned with its own z axis. -->
+  <link name="left_wheel_link">
+    <inertial>
+      <mass value="0.2"/>
+      <!-- Solid cylinder about its axis (y): m*r^2/2; across it: m/12*(3r^2 + h^2). -->
+      <inertia ixx="0.00014" ixy="0" ixz="0" iyy="0.00025" iyz="0" izz="0.00014"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.05" length="0.03"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.05" length="0.03"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel_link"/>
+    <origin xyz="0 0.115 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="right_wheel_link">
+    <inertial>
+      <mass value="0.2"/>
+      <inertia ixx="0.00014" ixy="0" ixz="0" iyy="0.00025" iyz="0" izz="0.00014"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.05" length="0.03"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.05" length="0.03"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel_link"/>
+    <origin xyz="0 -0.115 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Gazebo-only extensions: ignored by ROS tools, copied into the SDF by sdformat. -->
+
+  <!-- Friction: grippy wheels, frictionless caster. -->
+  <gazebo reference="left_wheel_link">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+  <gazebo reference="right_wheel_link">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+  <gazebo reference="caster_link">
+    <mu1>0.0</mu1>
+    <mu2>0.0</mu2>
+  </gazebo>
+
+  <gazebo>
+    <!-- Turns (v, w) commands into wheel speeds and integrates the odometry.
+         Topics keep the Gazebo defaults (/model/diff_drive_robot/cmd_vel and
+         /model/diff_drive_robot/odometry); the bridge maps them to ROS names. -->
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>0.23</wheel_separation>
+      <wheel_radius>0.05</wheel_radius>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_footprint</child_frame_id>
+      <max_linear_velocity>0.2</max_linear_velocity>
+      <min_linear_velocity>-0.2</min_linear_velocity>
+      <max_angular_velocity>1.0</max_angular_velocity>
+      <min_angular_velocity>-1.0</min_angular_velocity>
+      <max_linear_acceleration>1.0</max_linear_acceleration>
+      <min_linear_acceleration>-1.0</min_linear_acceleration>
+      <max_angular_acceleration>4.0</max_angular_acceleration>
+      <min_angular_acceleration>-4.0</min_angular_acceleration>
+    </plugin>
+    <!-- Publishes the wheel joint angles, so robot_state_publisher can draw the
+         wheels in RViz. -->
+    <plugin filename="gz-sim-joint-state-publisher-system"
+            name="gz::sim::systems::JointStatePublisher">
+    </plugin>
+  </gazebo>
+
+</robot>
