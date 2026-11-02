@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>goal_reaching</name>
+  <version>0.0.0</version>
+  <description>Gymnasium environment for a diff-drive robot that reaches a goal in Gazebo.</description>
+  <maintainer email="erikaymat@gmail.com">Erik Aymat Urteaga</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Style and docstrings are checked by ruff (see ruff.toml), not by ament linters. -->
+  <test_depend>ament_mypy</test_depend>
+  <test_depend>ament_xmllint</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
