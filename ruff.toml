@@ -1,10 +1,15 @@
-line-length = 100
+# Line length and quotes follow the ROS 2 Python style (ament_flake8).
+line-length = 99
 extend-exclude = ["build", "install", "log", "runs", ".venv"]
 
 [lint]
 # E/W pycodestyle, F pyflakes, I isort, B bugbear, UP pyupgrade, SIM simplify, NPY numpy,
 # D pydocstyle
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "NPY", "D"]
+
+[lint.isort]
+# Sort by module name, mixing `import x` and `from x import y` (ROS 2 / google import order).
+force-sort-within-sections = true
 
 [lint.pydocstyle]
 convention = "google"
@@ -17,4 +22,4 @@ convention = "google"
 "**/setup.py" = ["D100"]
 
 [format]
-quote-style = "double"
+quote-style = "single"
