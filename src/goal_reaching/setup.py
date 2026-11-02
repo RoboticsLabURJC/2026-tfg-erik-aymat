@@ -12,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/urdf', glob('urdf/*.urdf')),
+        ('share/' + package_name + '/worlds', glob('worlds/*.sdf')),
     ],
     package_data={'': ['py.typed']},
     install_requires=['setuptools'],
