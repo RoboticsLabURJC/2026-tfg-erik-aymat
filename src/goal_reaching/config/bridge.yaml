@@ -1,0 +1,47 @@
+# ros_gz_bridge mappings for the goal-reaching world.
+#
+# ROS names are relative (no leading '/') so a namespace can be pushed when
+# several simulations run in parallel. Two exceptions: /clock, which every node
+# with use_sim_time reads from the root, and the world control service, whose
+# name is the Gazebo one and carries the world name.
+
+# Simulation time, published by Gazebo at every step.
+- ros_topic_name: /clock
+  gz_topic_name: /clock
+  ros_type_name: rosgraph_msgs/msg/Clock
+  gz_type_name: gz.msgs.Clock
+  direction: GZ_TO_ROS
+
+# Velocity command for the DiffDrive plugin (linear.x in m/s, angular.z in rad/s).
+- ros_topic_name: cmd_vel
+  gz_topic_name: /model/diff_drive_robot/cmd_vel
+  ros_type_name: geometry_msgs/msg/Twist
+  gz_type_name: gz.msgs.Twist
+  direction: ROS_TO_GZ
+
+# Odometry integrated by DiffDrive from the wheel joints (frame odom).
+- ros_topic_name: odom
+  gz_topic_name: /model/diff_drive_robot/odometry
+  ros_type_name: nav_msgs/msg/Odometry
+  gz_type_name: gz.msgs.Odometry
+  direction: GZ_TO_ROS
+
+# The same odometry as the TF odom -> base_footprint.
+- ros_topic_name: tf
+  gz_topic_name: /model/diff_drive_robot/tf
+  ros_type_name: tf2_msgs/msg/TFMessage
+  gz_type_name: gz.msgs.Pose_V
+  direction: GZ_TO_ROS
+
+# Wheel angles, so robot_state_publisher can place the wheel frames.
+- ros_topic_name: joint_states
+  gz_topic_name: /world/goal_reaching/model/diff_drive_robot/joint_state
+  ros_type_name: sensor_msgs/msg/JointState
+  gz_type_name: gz.msgs.Model
+  direction: GZ_TO_ROS
+
+# Pause, step N iterations and reset the world.
+- service_name: /world/goal_reaching/control
+  ros_type_name: ros_gz_interfaces/srv/ControlWorld
+  gz_req_type_name: gz.msgs.WorldControl
+  gz_rep_type_name: gz.msgs.Boolean
