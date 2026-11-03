@@ -8,6 +8,8 @@ GZ_PARTITION, which is an environment variable and not a launch argument.
 """
 
 import os
+import tempfile
+from xml.etree import ElementTree
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchContext, LaunchDescription
@@ -23,14 +25,39 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, PushROSNamespace
 
 
+def with_real_time_factor(world: str, real_time_factor: str) -> str:
+    """Write a copy of the world with another real-time factor and return its path.
+
+    The real-time factor lives in the world file and gz sim cannot override it
+    exactly: its -z option sets an update rate, and 0 there is ignored instead of
+    meaning "no limit". The copy goes to the temporary directory under a name that
+    depends on the factor, so launching twice with the same value reuses it.
+    """
+    tree = ElementTree.parse(world)
+    elements = list(tree.getroot().iter('real_time_factor'))
+    if not elements:
+        raise RuntimeError(f'{world} has no <real_time_factor> to override')
+    for element in elements:
+        element.text = real_time_factor
+    name = os.path.splitext(os.path.basename(world))[0]
+    path = os.path.join(tempfile.gettempdir(), f'{name}_rtf_{real_time_factor}.sdf')
+    tree.write(path)
+    return path
+
+
 def gazebo(context: LaunchContext) -> list[IncludeLaunchDescription]:
     """Build the gz sim command line from the launch arguments."""
+    world = LaunchConfiguration('world').perform(context)
+    real_time_factor = LaunchConfiguration('real_time_factor').perform(context)
+    if real_time_factor:
+        world = with_real_time_factor(world, real_time_factor)
+
     args = []
     if LaunchConfiguration('headless').perform(context) == 'true':
         args += ['-s', '--headless-rendering']  # server only, sensors still render
     if LaunchConfiguration('paused').perform(context) != 'true':
         args.append('-r')  # run on start; without it the world waits paused
-    args.append(LaunchConfiguration('world').perform(context))
+    args.append(world)
 
     gz_sim_launch = os.path.join(
         get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py'
@@ -69,6 +96,12 @@ def generate_launch_description() -> LaunchDescription:
             'paused',
             default_value='false',
             description='Start with the world paused (stepped mode).',
+        ),
+        DeclareLaunchArgument(
+            'real_time_factor',
+            default_value='',
+            description='Override the real-time factor of the world: 0 runs as fast as '
+            'possible (stepped mode), 1 is real time. Empty keeps the value of the world.',
         ),
         DeclareLaunchArgument(
             'use_sim_time',
