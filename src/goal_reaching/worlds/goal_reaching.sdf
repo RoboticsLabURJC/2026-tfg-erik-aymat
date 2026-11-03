@@ -1,7 +1,13 @@
 <?xml version="1.0"?>
 <!--
-  Empty world for the goal-reaching experiments. The robot is not part of the
-  world: it is spawned from its URDF (urdf/diff_drive_robot.urdf).
+  World for the goal-reaching experiments: ground, light and the robot.
+
+  The robot is included from its URDF instead of being spawned afterwards, so it
+  belongs to the initial state and 'reset all' puts it back at the origin. A robot
+  spawned with 'create' is removed by 'reset all'.
+
+  model:// paths are resolved through GZ_SIM_RESOURCE_PATH, which must contain the
+  share directory of the installed packages (install/goal_reaching/share).
 -->
 <sdf version="1.12">
   <world name="goal_reaching">
@@ -14,8 +20,8 @@
     </physics>
 
     <!-- Systems (plugins) loaded by the world. Without Physics nothing moves;
-         UserCommands provides the create/remove/set_pose services used to
-         spawn the robot; SceneBroadcaster sends the scene to the GUI. -->
+         UserCommands provides the create/remove/set_pose services;
+         SceneBroadcaster sends the scene to the GUI. -->
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
     <plugin filename="gz-sim-scene-broadcaster-system"
@@ -54,6 +60,12 @@
         </visual>
       </link>
     </model>
+
+    <!-- sdformat converts the URDF to SDF when the world is loaded. -->
+    <include>
+      <uri>model://goal_reaching/urdf/diff_drive_robot.urdf</uri>
+      <name>diff_drive_robot</name>
+    </include>
 
   </world>
 </sdf>
