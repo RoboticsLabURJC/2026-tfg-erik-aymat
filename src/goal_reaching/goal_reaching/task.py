@@ -37,6 +37,17 @@ PROGRESS_REWARD_SCALE = 10.0  # per metre closer to the goal
 STEP_PENALTY = 0.01  # per step, so that wandering around is not free
 SUCCESS_REWARD = 10.0
 
+# Bounds of the observation, for the environment's observation space. The farthest
+# the robot can be from the goal: a corner of the arena, overshot by one step at
+# full speed, with the goal at its maximum distance on the opposite side.
+_MAX_GOAL_DISTANCE_SEEN = (
+    math.sqrt(2) * (ARENA_HALF_SIZE + MAX_LINEAR_SPEED * CONTROL_PERIOD) + GOAL_MAX_DISTANCE
+)
+OBSERVATION_LOW = np.array([0.0, -1.0, -1.0, -1.0, -1.0], dtype=np.float32)
+OBSERVATION_HIGH = np.array(
+    [_MAX_GOAL_DISTANCE_SEEN / GOAL_MAX_DISTANCE, 1.0, 1.0, 1.0, 1.0], dtype=np.float32
+)
+
 
 def sample_goal(rng: np.random.Generator) -> np.ndarray:
     """Draw a goal position on the ring around the origin.

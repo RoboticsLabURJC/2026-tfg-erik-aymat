@@ -7,6 +7,15 @@
   <maintainer email="erikaymat@gmail.com">Erik Aymat Urteaga</maintainer>
   <license>Apache-2.0</license>
 
+  <!-- Used by the environment (goal_reaching/ros_env.py). Gymnasium is not in
+       rosdep: it comes from requirements.txt in the virtual environment. -->
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>ros_gz_interfaces</exec_depend>
+  <exec_depend>rosgraph_msgs</exec_depend>
+
   <!-- Used by launch/sim.launch.py. -->
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>
