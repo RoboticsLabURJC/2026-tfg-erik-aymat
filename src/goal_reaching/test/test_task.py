@@ -1,12 +1,23 @@
 import math
 
 from goal_reaching.task import (
+    ARENA_HALF_SIZE,
+    CONTROL_PERIOD,
     GOAL_MAX_DISTANCE,
     GOAL_MIN_DISTANCE,
     MAX_ANGULAR_SPEED,
+    MAX_EPISODE_STEPS,
     MAX_LINEAR_SPEED,
     OBSERVATION_SIZE,
+    PROGRESS_REWARD_SCALE,
+    STEP_PENALTY,
+    SUCCESS_DISTANCE,
+    SUCCESS_REWARD,
+    distance_to_goal,
+    is_out_of_bounds,
+    is_success,
     observation,
+    reward,
     sample_goal,
 )
 import numpy as np
@@ -80,3 +91,63 @@ def test_velocities_are_scaled_by_their_limits():
     obs = observation(0.0, 0.0, 0.0, MAX_LINEAR_SPEED, -MAX_ANGULAR_SPEED, np.array([1.0, 0.0]))
     assert obs[3] == pytest.approx(1.0)
     assert obs[4] == pytest.approx(-1.0)
+
+
+# --- end conditions ------------------------------------------------------------------------
+
+
+def test_distance_to_goal():
+    assert distance_to_goal(1.0, 1.0, np.array([4.0, 5.0])) == pytest.approx(5.0)
+
+
+def test_success_threshold_is_strict():
+    assert is_success(SUCCESS_DISTANCE - 1e-3)
+    assert not is_success(SUCCESS_DISTANCE)
+
+
+@pytest.mark.parametrize(
+    'x, y, out',
+    [
+        (0.0, 0.0, False),
+        (ARENA_HALF_SIZE, -ARENA_HALF_SIZE, False),  # on the border is still inside
+        (ARENA_HALF_SIZE + 0.01, 0.0, True),
+        (0.0, -ARENA_HALF_SIZE - 0.01, True),
+    ],
+)
+def test_out_of_bounds(x, y, out):
+    assert is_out_of_bounds(x, y) == out
+
+
+def test_every_goal_is_inside_the_arena():
+    assert GOAL_MAX_DISTANCE < ARENA_HALF_SIZE
+
+
+def test_episode_is_long_enough_for_the_farthest_goal():
+    # Worst case: the farthest goal right behind the robot. Turn half a circle, then
+    # drive straight at full speed (acceleration limits ignored: they add < 0.5 s).
+    seconds = math.pi / MAX_ANGULAR_SPEED + GOAL_MAX_DISTANCE / MAX_LINEAR_SPEED
+    assert seconds / CONTROL_PERIOD < MAX_EPISODE_STEPS
+
+
+# --- reward --------------------------------------------------------------------------------
+
+
+def test_reward_for_getting_closer():
+    assert reward(1.0, 0.9) == pytest.approx(0.1 * PROGRESS_REWARD_SCALE - STEP_PENALTY)
+
+
+def test_reward_for_moving_away():
+    assert reward(0.9, 1.0) == pytest.approx(-0.1 * PROGRESS_REWARD_SCALE - STEP_PENALTY)
+
+
+def test_standing_still_only_pays_the_step_penalty():
+    assert reward(1.0, 1.0) == pytest.approx(-STEP_PENALTY)
+
+
+def test_going_back_and_forth_earns_nothing():
+    assert reward(1.0, 0.8) + reward(0.8, 1.0) == pytest.approx(-2 * STEP_PENALTY)
+
+
+def test_reaching_the_goal_adds_the_bonus():
+    expected = 0.1 * PROGRESS_REWARD_SCALE - STEP_PENALTY + SUCCESS_REWARD
+    assert reward(0.2, 0.1) == pytest.approx(expected)

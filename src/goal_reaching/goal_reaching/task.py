@@ -22,6 +22,21 @@ MAX_ANGULAR_SPEED = 1.0  # rad/s
 
 OBSERVATION_SIZE = 5
 
+# Time between two agent actions, in simulated time. Shared by every environment
+# so that one step means the same everywhere (100 physics iterations of 1 ms).
+CONTROL_PERIOD = 0.1  # s
+
+# Episode end conditions.
+SUCCESS_DISTANCE = 0.15  # m; closer than this to the goal counts as reached
+ARENA_HALF_SIZE = 3.0  # m; leaving the square [-3, 3] x [-3, 3] ends the episode
+MAX_EPISODE_STEPS = 200  # 20 s; the farthest goal needs about 13 s (see the tests)
+
+# Reward terms. Progress dominates: reaching the farthest goal is worth 20 from
+# progress plus 10 from the bonus, while 200 steps of penalty only add up to -2.
+PROGRESS_REWARD_SCALE = 10.0  # per metre closer to the goal
+STEP_PENALTY = 0.01  # per step, so that wandering around is not free
+SUCCESS_REWARD = 10.0
+
 
 def sample_goal(rng: np.random.Generator) -> np.ndarray:
     """Draw a goal position on the ring around the origin.
@@ -78,3 +93,42 @@ def observation(
         ],
         dtype=np.float32,
     )
+
+
+def distance_to_goal(x: float, y: float, goal: np.ndarray) -> float:
+    """Return the distance from the robot position to the goal (m)."""
+    return math.hypot(goal[0] - x, goal[1] - y)
+
+
+def is_success(distance: float) -> bool:
+    """Return whether the robot is close enough to the goal to count as reached."""
+    return distance < SUCCESS_DISTANCE
+
+
+def is_out_of_bounds(x: float, y: float) -> bool:
+    """Return whether the robot has left the arena."""
+    return abs(x) > ARENA_HALF_SIZE or abs(y) > ARENA_HALF_SIZE
+
+
+def reward(previous_distance: float, distance: float) -> float:
+    """Return the reward of one step.
+
+    The main term rewards progress: getting closer to the goal is positive and
+    moving away is negative, so going back and forth earns nothing. A small
+    penalty per step makes the shortest path the best one, and a bonus marks the
+    success.
+
+    Leaving the arena has no penalty of its own: the progress term has already
+    charged for moving away from the goal on the way out.
+
+    Args:
+        previous_distance: Distance to the goal before the step (m).
+        distance: Distance to the goal after the step (m).
+
+    Returns:
+        The reward for this step.
+    """
+    value = PROGRESS_REWARD_SCALE * (previous_distance - distance) - STEP_PENALTY
+    if is_success(distance):
+        value += SUCCESS_REWARD
+    return value
