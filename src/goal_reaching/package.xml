@@ -7,6 +7,15 @@
   <maintainer email="erikaymat@gmail.com">Erik Aymat Urteaga</maintainer>
   <license>Apache-2.0</license>
 
+  <!-- Used by launch/sim.launch.py. -->
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>ros_gz_bridge</exec_depend>
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
   <!-- Style and docstrings are checked by ruff (see ruff.toml), not by ament linters. -->
   <test_depend>ament_mypy</test_depend>
   <test_depend>ament_xmllint</test_depend>
@@ -14,5 +23,8 @@
 
   <export>
     <build_type>ament_python</build_type>
+    <!-- Adds share/.. to GZ_SIM_RESOURCE_PATH when Gazebo is started through
+         ros_gz_sim, so the world can include model://goal_reaching/urdf/... -->
+    <gazebo_ros gazebo_model_path="${prefix}/.."/>
   </export>
 </package>
