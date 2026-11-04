@@ -30,6 +30,7 @@
   <!-- Style and docstrings are checked by ruff (see ruff.toml), not by ament linters. -->
   <test_depend>ament_mypy</test_depend>
   <test_depend>ament_xmllint</test_depend>
+  <test_depend>launch_testing</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>
