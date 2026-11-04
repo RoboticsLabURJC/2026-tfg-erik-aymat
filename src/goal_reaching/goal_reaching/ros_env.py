@@ -126,6 +126,9 @@ class _RosInterface(Node):
         done = threading.Event()
         future.add_done_callback(lambda _: done.set())  # runs in the ROS thread
         if not done.wait(timeout):
+            # Otherwise the client keeps the request and a late answer would still
+            # arrive, during whatever the environment does next.
+            self.control.remove_pending_request(future)
             raise TimeoutError(f'{self.control.srv_name} did not answer in {timeout} s')
         response = future.result()  # None if the call was cancelled
         if response is None or not response.success:
@@ -172,6 +175,15 @@ class GoalReachingRosEnv(gym.Env):
         )
         self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
         self._iterations = round(task.CONTROL_PERIOD / physics_step)
+        # Otherwise a step would not end exactly at the next control period and the
+        # wait for its odometry would never be satisfied.
+        if self._iterations < 1 or not math.isclose(
+            self._iterations * physics_step, task.CONTROL_PERIOD
+        ):
+            raise ValueError(
+                f'physics_step {physics_step} s must divide the control period '
+                f'{task.CONTROL_PERIOD} s'
+            )
         self._period_ns = round(task.CONTROL_PERIOD * 1e9)
         self._timeout = timeout
         # Episode state, set by reset() and updated by step().
@@ -209,6 +221,7 @@ class GoalReachingRosEnv(gym.Env):
             simulation time of the observation.
         """
         super().reset(seed=seed)
+        self._needs_reset = True  # until this reset succeeds
         if not self._ros.control.wait_for_service(timeout_sec=self._timeout):
             raise RuntimeError(
                 f'{self._ros.control.srv_name} is not available. Is the simulation running? '
@@ -273,6 +286,9 @@ class GoalReachingRosEnv(gym.Env):
             raise RuntimeError('call reset() before step(), and again after an episode ends')
 
         v_cmd, w_cmd = task.action_to_velocity(np.asarray(action))
+        # If the step fails half-way (a timeout), the world is in an unknown state
+        # and the episode cannot go on: it is cleared below only on success.
+        self._needs_reset = True
         command = Twist()
         command.linear.x = v_cmd
         command.angular.z = w_cmd
@@ -315,7 +331,13 @@ class GoalReachingRosEnv(gym.Env):
         # Gazebo answers before running the iterations: the answer only says the
         # request was accepted, so wait for the odometry stamped at the end.
         self._ros.call_control(request, self._timeout)
-        return self._ros.wait('odom', since, lambda m: to_ns(m.header.stamp) >= target_ns, timeout)
+        odom = self._ros.wait('odom', since, lambda m: to_ns(m.header.stamp) >= target_ns, timeout)
+        # A later stamp means the world ran more than one period (e.g. something
+        # else stepped it): the observation would not match the action.
+        stamp_ns = to_ns(odom.header.stamp)
+        if stamp_ns != target_ns:
+            raise RuntimeError(f'expected odometry at {target_ns} ns, got {stamp_ns} ns')
+        return odom
 
     def close(self) -> None:
         """Stop the robot and shut ROS 2 down; safe to call more than once."""

@@ -168,3 +168,9 @@ def test_action_outside_the_range_is_clipped():
     assert action_to_velocity(np.array([3.0, -2.0])) == pytest.approx(
         (MAX_LINEAR_SPEED, -MAX_ANGULAR_SPEED)
     )
+
+
+@pytest.mark.parametrize('bad', [math.nan, math.inf])
+def test_non_finite_action_is_an_error(bad):
+    with pytest.raises(ValueError, match='finite'):
+        action_to_velocity(np.array([bad, 0.0]))

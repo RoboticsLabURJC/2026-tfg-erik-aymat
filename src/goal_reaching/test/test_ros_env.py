@@ -53,3 +53,9 @@ def test_two_environments_shut_down_independently():
 def test_step_before_reset_is_an_error(env):
     with pytest.raises(RuntimeError, match='reset'):
         env.step(np.zeros(2, dtype=np.float32))
+
+
+@pytest.mark.parametrize('physics_step', [0.003, 0.2])
+def test_physics_step_must_divide_the_control_period(physics_step):
+    with pytest.raises(ValueError, match='divide'):
+        GoalReachingRosEnv(physics_step=physics_step)

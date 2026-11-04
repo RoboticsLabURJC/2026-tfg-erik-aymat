@@ -157,6 +157,12 @@ def action_to_velocity(action: np.ndarray) -> tuple[float, float]:
 
     Returns:
         ``(v, w)``: linear velocity (m/s) and angular velocity (rad/s).
+
+    Raises:
+        ValueError: If the action has NaN or infinite values, which clipping
+            would let through (a policy whose training diverged).
     """
+    if not np.all(np.isfinite(action)):
+        raise ValueError(f'action must be finite, got {action}')
     linear, angular = np.clip(action, -1.0, 1.0)
     return float(linear) * MAX_LINEAR_SPEED, float(angular) * MAX_ANGULAR_SPEED
