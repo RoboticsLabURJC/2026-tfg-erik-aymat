@@ -15,12 +15,12 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchContext, LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    ExecuteProcess,
     GroupAction,
-    IncludeLaunchDescription,
     OpaqueFunction,
+    Shutdown,
 )
 from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, PushROSNamespace
 
@@ -45,7 +45,7 @@ def with_real_time_factor(world: str, real_time_factor: str) -> str:
     return path
 
 
-def gazebo(context: LaunchContext) -> list[IncludeLaunchDescription]:
+def gazebo(context: LaunchContext) -> list[ExecuteProcess]:
     """Build the gz sim command line from the launch arguments."""
     world = LaunchConfiguration('world').perform(context)
     real_time_factor = LaunchConfiguration('real_time_factor').perform(context)
@@ -59,15 +59,22 @@ def gazebo(context: LaunchContext) -> list[IncludeLaunchDescription]:
         args.append('-r')  # run on start; without it the world waits paused
     args.append(world)
 
-    gz_sim_launch = os.path.join(
-        get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py'
+    # model://goal_reaching/... is resolved through GZ_SIM_RESOURCE_PATH, which must
+    # contain the directory holding the package's share folder.
+    share_parent = os.path.dirname(get_package_share_directory('goal_reaching'))
+    resource_path = os.pathsep.join(
+        filter(None, [share_parent, os.environ.get('GZ_SIM_RESOURCE_PATH', '')])
     )
+    # gz is started directly, not through ros_gz_sim's gz_sim.launch.py: that one
+    # runs it in a shell, and when launch shuts down (launch_testing, a script)
+    # only the shell gets the signal, leaving the Gazebo server orphaned.
     return [
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(gz_sim_launch),
-            # gz_sim.launch.py also adds the paths exported in package.xml to
-            # GZ_SIM_RESOURCE_PATH, which is how model://goal_reaching/... is found.
-            launch_arguments={'gz_args': ' '.join(args), 'on_exit_shutdown': 'true'}.items(),
+        ExecuteProcess(
+            cmd=['gz', 'sim', *args],
+            name='gazebo',
+            output='screen',
+            additional_env={'GZ_SIM_RESOURCE_PATH': resource_path},
+            on_exit=Shutdown(),  # closing the GUI ends the whole launch
         )
     ]
 
