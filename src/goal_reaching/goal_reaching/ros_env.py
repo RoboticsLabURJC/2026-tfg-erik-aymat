@@ -122,7 +122,8 @@ class _RosInterface(Node):
         future.add_done_callback(lambda _: done.set())  # runs in the ROS thread
         if not done.wait(timeout):
             raise TimeoutError(f'{self.control.srv_name} did not answer in {timeout} s')
-        if not future.result().success:
+        response = future.result()  # None if the call was cancelled
+        if response is None or not response.success:
             raise RuntimeError(f'{self.control.srv_name} rejected the request')
 
 
