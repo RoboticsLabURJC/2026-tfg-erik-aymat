@@ -143,3 +143,20 @@ def reward(previous_distance: float, distance: float) -> float:
     if is_success(distance):
         value += SUCCESS_REWARD
     return value
+
+
+def action_to_velocity(action: np.ndarray) -> tuple[float, float]:
+    """Scale an action in [-1, 1] to the robot velocities.
+
+    Policies output normalised actions (Gymnasium convention); the robot needs
+    m/s and rad/s. Values outside [-1, 1] are clipped, since some algorithms
+    (PPO with a Gaussian policy) can sample them.
+
+    Args:
+        action: ``[linear, angular]``, each in [-1, 1].
+
+    Returns:
+        ``(v, w)``: linear velocity (m/s) and angular velocity (rad/s).
+    """
+    linear, angular = np.clip(action, -1.0, 1.0)
+    return float(linear) * MAX_LINEAR_SPEED, float(angular) * MAX_ANGULAR_SPEED

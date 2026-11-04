@@ -167,10 +167,14 @@ class GoalReachingRosEnv(gym.Env):
         )
         self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
         self._iterations = round(task.CONTROL_PERIOD / physics_step)
+        self._period_ns = round(task.CONTROL_PERIOD * 1e9)
         self._timeout = timeout
+        # Episode state, set by reset() and updated by step().
+        self._needs_reset = True
         self._goal = np.zeros(2)
         self._previous_distance = 0.0
         self._steps = 0
+        self._sim_time_ns = 0  # stamp of the last observation
 
         # Own context: several environments can live in one process (SB3 vector
         # environments) and each one shuts down without touching the others. No
@@ -219,22 +223,76 @@ class GoalReachingRosEnv(gym.Env):
         self._ros.wait('clock', since_clock, lambda m: to_ns(m.clock) == 0, self._timeout)
 
         # A paused world publishes no odometry, so advance one control period (the
-        # command was cleared by the reset) and wait for the odometry at its end.
-        request = ControlWorld.Request()
-        request.world_control.pause = True
-        request.world_control.multi_step = self._iterations
-        self._ros.call_control(request, self._timeout)
-        target = round(task.CONTROL_PERIOD * 1e9)
-        odom = self._ros.wait(
-            'odom', since, lambda m: to_ns(m.header.stamp) >= target, self._timeout
-        )
+        # command was cleared by the reset) to get the first observation.
+        odom = self._advance(since, self._period_ns)
 
         self._goal = task.sample_goal(self.np_random)
         x, y, yaw, v, w = odometry_state(odom)
         self._previous_distance = task.distance_to_goal(x, y, self._goal)
         self._steps = 0
-        info = {'goal': self._goal.copy(), 'sim_time': to_ns(odom.header.stamp) / 1e9}
+        self._sim_time_ns = to_ns(odom.header.stamp)
+        self._needs_reset = False
+        info = {'goal': self._goal.copy(), 'sim_time': self._sim_time_ns / 1e9}
         return task.observation(x, y, yaw, v, w, self._goal), info
+
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+        """Apply the action for one control period of simulated time and observe.
+
+        Args:
+            action: ``[linear, angular]`` in [-1, 1].
+
+        Returns:
+            Observation, reward, terminated (goal reached or robot out of the
+            arena), truncated (step limit) and an info dict.
+        """
+        if self._needs_reset:
+            raise RuntimeError('call reset() before step(), and again after an episode ends')
+
+        v_cmd, w_cmd = task.action_to_velocity(np.asarray(action))
+        command = Twist()
+        command.linear.x = v_cmd
+        command.angular.z = w_cmd
+        since = self._ros.count('odom')
+        # The command goes through the bridge on its own; in the probe it always
+        # reached DiffDrive before the first iteration, but that is not guaranteed.
+        self._ros.cmd_vel.publish(command)
+        odom = self._advance(since, self._sim_time_ns + self._period_ns)
+
+        x, y, yaw, v, w = odometry_state(odom)
+        distance = task.distance_to_goal(x, y, self._goal)
+        reward = task.reward(self._previous_distance, distance)
+        self._previous_distance = distance
+        self._steps += 1
+        self._sim_time_ns = to_ns(odom.header.stamp)
+
+        success = task.is_success(distance)
+        terminated = success or task.is_out_of_bounds(x, y)
+        truncated = not terminated and self._steps >= task.MAX_EPISODE_STEPS
+        self._needs_reset = terminated or truncated
+        info = {
+            'sim_time': self._sim_time_ns / 1e9,
+            'distance': distance,
+            'is_success': success,  # read by SB3 to log the success rate
+        }
+        return task.observation(x, y, yaw, v, w, self._goal), reward, terminated, truncated, info
+
+    def _advance(self, since: int, target_ns: int) -> Odometry:
+        """Advance the paused world one control period and return the odometry at its end.
+
+        Args:
+            since: Odometry count taken before the request; older messages are
+                ignored.
+            target_ns: Simulated time the world reaches after the period.
+        """
+        request = ControlWorld.Request()
+        request.world_control.pause = True
+        request.world_control.multi_step = self._iterations
+        # Gazebo answers before running the iterations: the answer only says the
+        # request was accepted, so wait for the odometry stamped at the end.
+        self._ros.call_control(request, self._timeout)
+        return self._ros.wait(
+            'odom', since, lambda m: to_ns(m.header.stamp) >= target_ns, self._timeout
+        )
 
     def close(self) -> None:
         """Stop the robot and shut ROS 2 down; safe to call more than once."""

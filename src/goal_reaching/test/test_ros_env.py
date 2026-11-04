@@ -48,3 +48,8 @@ def test_two_environments_shut_down_independently():
     assert second._context.ok()
     second.close()
     assert not second._context.ok()
+
+
+def test_step_before_reset_is_an_error(env):
+    with pytest.raises(RuntimeError, match='reset'):
+        env.step(np.zeros(2, dtype=np.float32))

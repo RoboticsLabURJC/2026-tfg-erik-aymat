@@ -13,6 +13,7 @@ from goal_reaching.task import (
     STEP_PENALTY,
     SUCCESS_DISTANCE,
     SUCCESS_REWARD,
+    action_to_velocity,
     distance_to_goal,
     is_out_of_bounds,
     is_success,
@@ -151,3 +152,19 @@ def test_going_back_and_forth_earns_nothing():
 def test_reaching_the_goal_adds_the_bonus():
     expected = 0.1 * PROGRESS_REWARD_SCALE - STEP_PENALTY + SUCCESS_REWARD
     assert reward(0.2, 0.1) == pytest.approx(expected)
+
+
+# --- action --------------------------------------------------------------------------------
+
+
+def test_action_is_scaled_to_the_velocity_limits():
+    assert action_to_velocity(np.array([1.0, -1.0])) == pytest.approx(
+        (MAX_LINEAR_SPEED, -MAX_ANGULAR_SPEED)
+    )
+    assert action_to_velocity(np.array([0.5, 0.0])) == pytest.approx((MAX_LINEAR_SPEED / 2, 0.0))
+
+
+def test_action_outside_the_range_is_clipped():
+    assert action_to_velocity(np.array([3.0, -2.0])) == pytest.approx(
+        (MAX_LINEAR_SPEED, -MAX_ANGULAR_SPEED)
+    )
