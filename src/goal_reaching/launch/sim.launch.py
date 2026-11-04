@@ -20,7 +20,7 @@ from launch.actions import (
     OpaqueFunction,
     Shutdown,
 )
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, evaluate_condition_expression
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, PushROSNamespace
 
@@ -50,12 +50,23 @@ def gazebo(context: LaunchContext) -> list[ExecuteProcess]:
     world = LaunchConfiguration('world').perform(context)
     real_time_factor = LaunchConfiguration('real_time_factor').perform(context)
     if real_time_factor:
+        try:
+            valid = float(real_time_factor) >= 0
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError(f'real_time_factor must be a number >= 0, got {real_time_factor!r}')
         world = with_real_time_factor(world, real_time_factor)
 
+    # Same rules as IfCondition (used for rviz): true/false or 1/0, any case;
+    # anything else is an error instead of silently meaning false.
+    def is_true(name: str) -> bool:
+        return evaluate_condition_expression(context, [LaunchConfiguration(name)])
+
     args = []
-    if LaunchConfiguration('headless').perform(context) == 'true':
+    if is_true('headless'):
         args += ['-s', '--headless-rendering']  # server only, sensors still render
-    if LaunchConfiguration('paused').perform(context) != 'true':
+    if not is_true('paused'):
         args.append('-r')  # run on start; without it the world waits paused
     args.append(world)
 
