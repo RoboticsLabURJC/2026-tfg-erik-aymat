@@ -16,6 +16,7 @@ from collections.abc import Callable
 import contextlib
 import math
 import threading
+import time
 from typing import Any
 
 from builtin_interfaces.msg import Time
@@ -33,6 +34,10 @@ from ros_gz_interfaces.srv import ControlWorld
 from rosgraph_msgs.msg import Clock
 
 from goal_reaching import task
+
+# Wall time to wait for the first odometry after a reset before trying again;
+# a normal reset takes 0.1-0.2 s (see reset()).
+_FIRST_ODOMETRY_TIMEOUT = 1.0  # s
 
 
 def to_ns(stamp: Time) -> int:
@@ -210,6 +215,35 @@ class GoalReachingRosEnv(gym.Env):
                 'ros2 launch goal_reaching sim.launch.py paused:=true real_time_factor:=0'
             )
 
+        # Right after Gazebo starts, the control service can answer before the bridge
+        # is connected to the odometry topic, and the odometry of the first period is
+        # lost. If none arrives soon, start the reset again, until the timeout.
+        deadline = time.monotonic() + self._timeout
+        attempts = 1
+        while True:
+            try:
+                odom = self._reset_world(_FIRST_ODOMETRY_TIMEOUT)
+                break
+            except TimeoutError:
+                if time.monotonic() > deadline:
+                    raise
+                attempts += 1
+
+        self._goal = task.sample_goal(self.np_random)
+        x, y, yaw, v, w = odometry_state(odom)
+        self._previous_distance = task.distance_to_goal(x, y, self._goal)
+        self._steps = 0
+        self._sim_time_ns = to_ns(odom.header.stamp)
+        self._needs_reset = False
+        info = {
+            'goal': self._goal.copy(),
+            'sim_time': self._sim_time_ns / 1e9,
+            'reset_attempts': attempts,
+        }
+        return task.observation(x, y, yaw, v, w, self._goal), info
+
+    def _reset_world(self, timeout: float) -> Odometry:
+        """Reset the world, keep it paused and return the first odometry after it."""
         # 'reset all' alone would also unpause the world: send both in one request.
         since = self._ros.count('odom')
         since_clock = self._ros.count('clock')
@@ -221,19 +255,9 @@ class GoalReachingRosEnv(gym.Env):
         # before it is applied replaces it: the reset would be lost. Wait until a
         # new /clock shows the time back at zero.
         self._ros.wait('clock', since_clock, lambda m: to_ns(m.clock) == 0, self._timeout)
-
         # A paused world publishes no odometry, so advance one control period (the
         # command was cleared by the reset) to get the first observation.
-        odom = self._advance(since, self._period_ns)
-
-        self._goal = task.sample_goal(self.np_random)
-        x, y, yaw, v, w = odometry_state(odom)
-        self._previous_distance = task.distance_to_goal(x, y, self._goal)
-        self._steps = 0
-        self._sim_time_ns = to_ns(odom.header.stamp)
-        self._needs_reset = False
-        info = {'goal': self._goal.copy(), 'sim_time': self._sim_time_ns / 1e9}
-        return task.observation(x, y, yaw, v, w, self._goal), info
+        return self._advance(since, self._period_ns, timeout)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         """Apply the action for one control period of simulated time and observe.
@@ -256,7 +280,7 @@ class GoalReachingRosEnv(gym.Env):
         # The command goes through the bridge on its own; in the probe it always
         # reached DiffDrive before the first iteration, but that is not guaranteed.
         self._ros.cmd_vel.publish(command)
-        odom = self._advance(since, self._sim_time_ns + self._period_ns)
+        odom = self._advance(since, self._sim_time_ns + self._period_ns, self._timeout)
 
         x, y, yaw, v, w = odometry_state(odom)
         distance = task.distance_to_goal(x, y, self._goal)
@@ -276,13 +300,14 @@ class GoalReachingRosEnv(gym.Env):
         }
         return task.observation(x, y, yaw, v, w, self._goal), reward, terminated, truncated, info
 
-    def _advance(self, since: int, target_ns: int) -> Odometry:
+    def _advance(self, since: int, target_ns: int, timeout: float) -> Odometry:
         """Advance the paused world one control period and return the odometry at its end.
 
         Args:
             since: Odometry count taken before the request; older messages are
                 ignored.
             target_ns: Simulated time the world reaches after the period.
+            timeout: Wall-clock seconds to wait for the odometry.
         """
         request = ControlWorld.Request()
         request.world_control.pause = True
@@ -290,9 +315,7 @@ class GoalReachingRosEnv(gym.Env):
         # Gazebo answers before running the iterations: the answer only says the
         # request was accepted, so wait for the odometry stamped at the end.
         self._ros.call_control(request, self._timeout)
-        return self._ros.wait(
-            'odom', since, lambda m: to_ns(m.header.stamp) >= target_ns, self._timeout
-        )
+        return self._ros.wait('odom', since, lambda m: to_ns(m.header.stamp) >= target_ns, timeout)
 
     def close(self) -> None:
         """Stop the robot and shut ROS 2 down; safe to call more than once."""
