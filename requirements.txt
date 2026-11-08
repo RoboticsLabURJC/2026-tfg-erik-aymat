@@ -1,0 +1,6 @@
+# Runtime dependencies for the RL side (training and inference).
+# Install inside the venv: pip install -c constraints.txt -r requirements.txt
+# torch from PyPI ships CUDA 13.2 wheels (cp314, manylinux x86_64).
+torch==2.15.0
+stable-baselines3==2.9.2
+gymnasium==1.4.0
