@@ -175,8 +175,8 @@ class GoalReachingRosEnv(gym.Env):
         )
         self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
         self._iterations = round(task.CONTROL_PERIOD / physics_step)
-        # Otherwise a step would not end exactly at the next control period and the
-        # wait for its odometry would never be satisfied.
+        # Otherwise a step would not end exactly at the next control period: no
+        # odometry would carry the expected stamp and every step would fail.
         if self._iterations < 1 or not math.isclose(
             self._iterations * physics_step, task.CONTROL_PERIOD
         ):
