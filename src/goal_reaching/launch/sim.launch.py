@@ -2,9 +2,13 @@
 
 Gazebo runs the world, which already contains the robot (included from its URDF).
 On the ROS side there are three nodes: the bridge, robot_state_publisher (TF of
-the robot body) and, optionally, RViz. The ROS nodes can be pushed into a
-namespace to run several simulations in parallel; Gazebo itself is isolated with
-GZ_PARTITION, which is an environment variable and not a launch argument.
+the robot body) and, optionally, RViz.
+
+The ROS nodes and topics can be pushed into a namespace, but a namespace does not
+isolate simulations: /clock and the world control service stay at the root, and
+a second Gazebo with the same world in the same partition does not simulate. To
+run simulations in parallel, give each one its own GZ_PARTITION and
+ROS_DOMAIN_ID (environment variables, not launch arguments).
 """
 
 import os
@@ -128,12 +132,15 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument('rviz', default_value='false', description='Open RViz.'),
         DeclareLaunchArgument(
-            'namespace', default_value='', description='Namespace for the ROS nodes and topics.'
+            'namespace',
+            default_value='',
+            description='Namespace for the ROS nodes and topics. It does not isolate '
+            'simulations: use GZ_PARTITION and ROS_DOMAIN_ID for that.',
         ),
     ]
 
     # tf2 publishes and subscribes to the absolute /tf and /tf_static. Remapping
-    # them to relative names keeps each namespaced simulation with its own TF.
+    # them to relative names keeps TF inside the namespace too.
     tf_remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
 
     ros_nodes = GroupAction(

@@ -1,9 +1,10 @@
 # ros_gz_bridge mappings for the goal-reaching world.
 #
-# ROS names are relative (no leading '/') so a namespace can be pushed when
-# several simulations run in parallel. Two exceptions: /clock, which every node
-# with use_sim_time reads from the root, and the world control service, whose
-# name is the Gazebo one and carries the world name.
+# ROS names are relative (no leading '/') so the launch file can push them into
+# a namespace (which does not isolate simulations; see the launch file). Two
+# exceptions: /clock, which every node with use_sim_time reads from the root,
+# and the world control service, whose name is the Gazebo one and carries the
+# world name.
 
 # Simulation time, published by Gazebo at every step.
 - ros_topic_name: /clock
