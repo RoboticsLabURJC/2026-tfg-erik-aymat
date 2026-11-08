@@ -23,6 +23,21 @@ environment and small hand-written experiments used to gather requirements.
 Progress is logged weekly, in Spanish, at
 <https://roboticslaburjc.github.io/2026-tfg-erik-aymat/>.
 
+### Current experiment: `goal_reaching`
+
+A diff-drive robot (URDF) in a Gazebo world and a hand-written Gymnasium environment,
+`GoalReachingRosEnv`, that drives it to random goals over ROS 2. Each `step()` advances the
+paused simulation exactly 0.1 s of simulated time. It is used to learn how Gymnasium and
+ROS 2 should be synchronized before designing the bridge.
+
+```bash
+# Simulation for the stepped environment: paused and as fast as possible
+ros2 launch goal_reaching sim.launch.py paused:=true real_time_factor:=0
+
+# Unit tests and an integration test that starts the simulation
+python -m colcon test --packages-select goal_reaching && colcon test-result --verbose
+```
+
 ## Requirements
 
 | Component | Version |
