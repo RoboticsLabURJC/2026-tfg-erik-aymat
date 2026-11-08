@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 400" width="660" height="400">
+  <style>
+    text { font-family: Helvetica, Arial, sans-serif; fill: #1f2937; font-size: 13px; }
+    .t { font-size: 15px; font-weight: bold; }
+    .s { font-size: 12px; fill: #4b5563; }
+    .m { font-family: 'DejaVu Sans Mono', Menlo, Consolas, monospace; font-size: 13px; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/>
+    </marker>
+  </defs>
+  <rect width="660" height="400" rx="12" fill="#ffffff"/>
+
+  <!-- Área de ±3 m (55 px por metro) -->
+  <rect x="35" y="35" width="330" height="330" fill="#f9fafb" stroke="#6b7280" stroke-width="1.5"/>
+  <text x="200" y="27" text-anchor="middle" class="s">área de 6 × 6 m (±3 m desde el origen)</text>
+
+  <!-- Anillo de objetivos: 0,5 a 2 m -->
+  <circle cx="200" cy="200" r="110" fill="#dbeafe" stroke="#2563eb" stroke-dasharray="5 4"/>
+  <circle cx="200" cy="200" r="27.5" fill="#f9fafb" stroke="#2563eb" stroke-dasharray="5 4"/>
+
+  <!-- Distancia y ángulo -->
+  <line x1="200" y1="200" x2="266" y2="156" stroke="#dc2626" stroke-width="1.6" stroke-dasharray="5 3"/>
+  <text x="222" y="166" class="t" fill="#dc2626">d</text>
+  <path d="M245,200 A45,45 0 0,0 237.4,175" fill="none" stroke="#7c3aed" stroke-width="1.6"/>
+  <text x="252" y="193" class="t">θ</text>
+
+  <!-- Robot mirando hacia +x -->
+  <rect x="192" y="185" width="10" height="4" fill="#6b7280"/>
+  <rect x="192" y="211" width="10" height="4" fill="#6b7280"/>
+  <rect x="186" y="189" width="26" height="22" rx="4" fill="#1f2937"/>
+  <line x1="212" y1="200" x2="290" y2="200" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="296" y="204" class="s">frente</text>
+  <text x="200" y="246" text-anchor="middle" class="s">robot (origen)</text>
+
+  <!-- Objetivo -->
+  <circle cx="266" cy="156" r="8.25" fill="none" stroke="#dc2626" stroke-dasharray="3 2"/>
+  <circle cx="266" cy="156" r="4" fill="#dc2626"/>
+  <text x="278" y="150">objetivo</text>
+
+  <!-- Leyenda -->
+  <text x="395" y="62" class="t">La tarea</text>
+  <rect x="395" y="78" width="16" height="12" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="419" y="89">objetivo al azar entre 0,5 y 2 m</text>
+  <circle cx="403" cy="109" r="5" fill="#dc2626"/>
+  <text x="419" y="113">éxito: a menos de 15 cm</text>
+  <rect x="395" y="125" width="16" height="12" fill="#f9fafb" stroke="#6b7280"/>
+  <text x="419" y="136">si sale del área: fin</text>
+  <text x="395" y="160">máximo 200 pasos (20 s): se corta</text>
+
+  <text x="395" y="200" class="t">Observación (5 números)</text>
+  <text x="395" y="222" class="m">d, sen θ, cos θ, v, ω</text>
+
+  <text x="395" y="262" class="t">Acción (2 números)</text>
+  <text x="395" y="284">v: ±0,2 m/s    ω: ±1 rad/s</text>
+
+  <text x="395" y="324" class="t">Recompensa por paso</text>
+  <text x="395" y="346">10 × lo que se acerca − 0,01</text>
+  <text x="395" y="364">+10 al llegar</text>
+</svg>
