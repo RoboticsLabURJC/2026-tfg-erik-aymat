@@ -1,0 +1,19 @@
+title: TFG Erik Aymat
+description: Bitácora del TFG, un puente entre ROS 2 y Gymnasium
+url: "https://roboticslaburjc.github.io"
+baseurl: "/2026-tfg-erik-aymat"
+locale: es-ES
+logo: "/logo.png"
+
+remote_theme: mmistakes/minimal-mistakes
+plugins:
+  - jekyll-remote-theme
+  - jekyll-include-cache
+
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: single
+      show_date: true
